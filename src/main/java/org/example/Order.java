@@ -4,18 +4,24 @@
 
 package org.example;
 
+import java.util.Objects;
+
 import org.hyperledger.fabric.contract.annotation.DataType;
 import org.hyperledger.fabric.contract.annotation.Property;
-import org.json.JSONObject;
+
+import com.owlike.genson.annotation.JsonProperty;
 
 @DataType()
-public class Order {
+public final class Order {
 
     @Property()
-    private String orderHash;
+    private final String orderHash;
 
-    public Order(String symbol, String quantity, String price, String method, String timestamp, String valid, String processed, String traderHin){
-        String preString = symbol + quantity +  price +  method +  timestamp + valid + processed + traderHin;
+    public Order(@JsonProperty("symbol") final String symbol, @JsonProperty("quantity") final String quantity, 
+            @JsonProperty("price") final String price, @JsonProperty("method") final String method, 
+            @JsonProperty("timestamp") final String timestamp, @JsonProperty("valid") final String valid, 
+            @JsonProperty("processed") final String processed, @JsonProperty("traderHin") final String traderHin){
+        final String preString = symbol + quantity +  price +  method +  timestamp + valid + processed + traderHin;
         this.orderHash = Integer.toString(preString.hashCode());
     }
 
@@ -23,8 +29,25 @@ public class Order {
         return orderHash;
     }
 
-    public String toJSONString() {
-        return new JSONObject(this).toString();
+    @Override
+    public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        }
+
+        if ((obj == null) || (getClass() != obj.getClass())) {
+            return false;
+        }
+
+        Order other = (Order) obj;
+
+        return Objects.deepEquals(new String[] {getHash()},
+                new String[] {other.getHash()});
+    }
+
+    @Override
+    public String toString() {
+        return this.getClass().getSimpleName() + "@" + Integer.toHexString(hashCode()) + " [orderHash=" + orderHash + "]";
     }
 
     /*public static Order fromJSONString(String json) {

@@ -16,7 +16,6 @@ module.exports.init = async function(blockchain, context, args) {
     // -------------- initOrderId() --------------
     myArgs = { 
         chaincodeFunction: 'initOrderId',
-        invokerIdentity: 'admin',
         chaincodeArguments: []
     };
     try {
@@ -28,7 +27,6 @@ module.exports.init = async function(blockchain, context, args) {
     // -------------- createTrader() --------------
     myArgs = { 
         chaincodeFunction: 'createTrader',
-        invokerIdentity: 'admin',
         chaincodeArguments: []
     };
     try {
@@ -49,7 +47,6 @@ module.exports.init = async function(blockchain, context, args) {
             console.log(`Client ${clientIdx}: Creating asset ${symbol}`);
             const myArgs = {
                 chaincodeFunction: 'createSecurity',
-                invokerIdentity: 'admin',
                 chaincodeArguments: [symbol, name, quantity]
             };
             await bc.bcObj.invokeSmartContract(ctx, contractID, version, myArgs);
@@ -63,7 +60,6 @@ module.exports.run = function() {
     const symbol = 'AAPL';
     const myArgs = {
         chaincodeFunction: 'getSecurity',
-        invokerIdentity: 'admin',
         chaincodeArguments: [`${symbol}`]
     };
     return bc.bcObj.querySmartContract(ctx, contractID, version, myArgs);

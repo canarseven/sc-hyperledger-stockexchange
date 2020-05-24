@@ -4,22 +4,29 @@
 
 package org.example;
 
+import java.util.Objects;
+
+import java.util.ArrayList;
+import java.util.List;
+
 import org.hyperledger.fabric.contract.annotation.DataType;
 import org.hyperledger.fabric.contract.annotation.Property;
-import org.json.JSONObject;
-import org.json.JSONArray;
-import java.util.*;
-import org.example.Security;
+
+import com.owlike.genson.annotation.JsonProperty;
 
 @DataType()
 public class Trader {
 
     @Property()
-    private String hin;
+    private final String hin;
+
+    @Property()
     private String balance;
+
+    @Property()
     private List<Security> securities;
 
-    public Trader(String hin, String balance){
+    public Trader(@JsonProperty("hin") final String hin, @JsonProperty("balance") String balance){
         this.hin = hin;
         this.balance = balance;
         this.securities = new ArrayList<Security>();
@@ -33,11 +40,15 @@ public class Trader {
         return balance;
     }
 
-    public void modBalance(int amount) {
+    public List<Security> getSecurities() {
+        return securities;
+    }
+
+    public void modBalance(@JsonProperty("amount") int amount) {
         this.balance += amount;
     }
 
-    public boolean addSecurity(Security newSecurity) {
+    public boolean modifySecurityQuantity(Security newSecurity) {
         for(Security security : securities) {
             if(security.getSymbol().equals(newSecurity.getSymbol())) {
                 security.modifyQuantity(newSecurity.getQuantity());
@@ -48,7 +59,7 @@ public class Trader {
         return true;
     }
 
-    public boolean removeSecurity(String symbol) {
+    public boolean removeSecurity(@JsonProperty("symbol") String symbol) {
         for(Security security : securities) {
             if(security.getSymbol().equals(symbol)) {
                 securities.remove(security);
@@ -58,7 +69,7 @@ public class Trader {
         return false;
     }
 
-    public boolean isMySecurity(String symbol) {
+    public boolean isMySecurity(@JsonProperty("symbol") String symbol) {
         for(Security security : securities) {
             if(security.getSymbol().equals(symbol)) {
                 return true;
@@ -67,7 +78,7 @@ public class Trader {
         return false;
     }
 
-    public Security getMySecurity(String symbol) {
+    public Security getMySecurity(@JsonProperty("symbol") String symbol) {
         for(Security security : securities) {
             if(security.getSymbol().equals(symbol)) {
                 return security;
@@ -76,15 +87,34 @@ public class Trader {
         return null;
     }
 
-    public List<Security> getSecurities() {
-        return securities;
+    @Override
+    public int hashCode() {
+        return Objects.hash(getHin(), getBalance(), getSecurities());
     }
 
-    public String toJSONString() {
-        return new JSONObject(this).toString();
+    @Override
+    public String toString() {
+        return this.getClass().getSimpleName() + "@" + Integer.toHexString(hashCode()) + " [hin=" + hin + ", balance="
+                + balance + ", securities=" + securities + "]";
     }
 
-    public static Trader fromJSONString(String json) {
+    @Override
+    public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        }
+
+        if ((obj == null) || (getClass() != obj.getClass())) {
+            return false;
+        }
+
+        Trader other = (Trader) obj;
+
+        return Objects.deepEquals(new String[] {getHin(), getBalance(), getSecurities()},
+                new String[] {other.getHin(), other.getBalance(), other.getSecurities()});
+    }
+
+    /*public static Trader fromJSONString(String json) {
         JSONObject jobj = new JSONObject(json);
         String hin = jobj.getString("hin");
         String balance = jobj.getString("balance");
@@ -97,5 +127,5 @@ public class Trader {
             trader.addSecurity(new Security(security.getString("symbol"), security.getString("name"), security.getString("quantity")));
         }
         return trader;
-    }
+    }*/
 }
