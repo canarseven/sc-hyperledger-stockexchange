@@ -9,6 +9,8 @@ import java.util.Objects;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.json.JSONObject;
+import org.json.JSONArray;
 import org.hyperledger.fabric.contract.annotation.DataType;
 import org.hyperledger.fabric.contract.annotation.Property;
 
@@ -110,11 +112,10 @@ public class Trader {
 
         Trader other = (Trader) obj;
 
-        return Objects.deepEquals(new String[] {getHin(), getBalance(), getSecurities()},
-                new String[] {other.getHin(), other.getBalance(), other.getSecurities()});
+        return Objects.deepEquals(new String[] {getHin()}, new String[] {other.getHin()});
     }
 
-    /*public static Trader fromJSONString(String json) {
+    public static Trader fromJSONString(String json) {
         JSONObject jobj = new JSONObject(json);
         String hin = jobj.getString("hin");
         String balance = jobj.getString("balance");
@@ -124,8 +125,8 @@ public class Trader {
         int n = securities.length();
         for (int i = 0; i < n; ++i) {
             JSONObject security = securities.getJSONObject(i);
-            trader.addSecurity(new Security(security.getString("symbol"), security.getString("name"), security.getString("quantity")));
+            trader.modifySecurityQuantity(new Security(security.getString("symbol"), security.getString("name"), security.getString("quantity")));
         }
         return trader;
-    }*/
+    }
 }

@@ -21,8 +21,8 @@ public final class Order {
             @JsonProperty("price") final String price, @JsonProperty("method") final String method, 
             @JsonProperty("timestamp") final String timestamp, @JsonProperty("valid") final String valid, 
             @JsonProperty("processed") final String processed, @JsonProperty("traderHin") final String traderHin){
-        final String preString = symbol + quantity +  price +  method +  timestamp + valid + processed + traderHin;
-        this.orderHash = Integer.toString(preString.hashCode());
+        final String orderString = symbol + quantity +  price +  method +  timestamp + valid + processed + traderHin;
+        this.orderHash = Integer.toString(orderString.hashCode());
     }
 
     public String getHash() {

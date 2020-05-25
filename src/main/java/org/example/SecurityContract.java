@@ -3,9 +3,20 @@
  */
 package org.example;
 
+
+import com.owlike.genson.Genson;
+
 import java.util.ArrayList;
 import java.util.List;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import org.json.JSONObject;
+
+import org.hyperledger.fabric.shim.ChaincodeException;
+import org.hyperledger.fabric.shim.ChaincodeStub;
+import org.hyperledger.fabric.shim.ledger.KeyValue;
+import org.hyperledger.fabric.shim.ledger.QueryResultsIterator;
+import org.hyperledger.fabric.shim.ledger.QueryResultsIteratorWithMetadata;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.contract.ContractInterface;
 import org.hyperledger.fabric.contract.annotation.Contract;
@@ -14,16 +25,6 @@ import org.hyperledger.fabric.contract.annotation.Transaction;
 import org.hyperledger.fabric.contract.annotation.Contact;
 import org.hyperledger.fabric.contract.annotation.Info;
 import org.hyperledger.fabric.contract.annotation.License;
-import org.hyperledger.fabric.shim.ChaincodeException;
-import org.hyperledger.fabric.shim.ChaincodeStub;
-import org.hyperledger.fabric.shim.ledger.KeyValue;
-import org.hyperledger.fabric.shim.ledger.QueryResultsIterator;
-import org.hyperledger.fabric.shim.ledger.QueryResultsIteratorWithMetadata;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-import org.json.JSONObject;
-import java.util.logging.Logger;
-import com.owlike.genson.Genson;
 
 
 @Contract(name = "SecurityContract",
@@ -39,8 +40,10 @@ import com.owlike.genson.Genson;
 @Default
 public class SecurityContract implements ContractInterface {
 
+    private final Genson genson = new Genson();
+
     @Transaction()
-    public boolean initOrderId(Context ctx) {
+    public boolean initOrderId(final Context ctx) {
         ChaincodeStub stub = ctx.getStub();
         if (!orderIdExists(ctx)) {
             String orderId = "0";
@@ -52,14 +55,14 @@ public class SecurityContract implements ContractInterface {
     }
 
     @Transaction()
-    public String getOrderId(Context ctx) {
+    public String getOrderId(final Context ctx) {
         ChaincodeStub stub = ctx.getStub();
         String jsonString = new String(stub.getState("ORDERID"));
         return jsonString;
     }
 
     @Transaction()
-    public String getAllOrders(Context ctx) {
+    public String getAllOrders(final Context ctx) {
         ChaincodeStub stub = ctx.getStub();
         int max = Integer.parseInt(getOrderId(ctx));
         String allOrders = "";
@@ -71,61 +74,68 @@ public class SecurityContract implements ContractInterface {
     }
 
     @Transaction()
-    public String getMyHin(Context ctx) {
-        return Integer.toString(ctx.getClientIdentity());
+    public String getMyId(final Context ctx) {
+        return ctx.getClientIdentity().getId();
     }
 
     @Transaction()
-    public Trader getMyAccount(Context ctx) {
+    public String getMyHin(final Context ctx) {
+        return Integer.toString(ctx.getClientIdentity().getId().hashCode());
+    }
+
+    @Transaction()
+    public Trader getMyAccount(final Context ctx) {
         ChaincodeStub stub = ctx.getStub();
         String traderState = stub.getStringState(getMyHin(ctx));
-        Trader myTrader = genson.deserialize(traderState, Trader.class);
+        Trader myTrader = Trader.fromJSONString(traderState);
         return myTrader;
     }
 
     @Transaction()
-    public String getMyAccString(Context ctx) {
-        return getMyAccount(ctx).toString();
+    public String getMyAccString(final Context ctx) {
+        ChaincodeStub stub = ctx.getStub();
+        return stub.getStringState(getMyHin(ctx));
+        //return getMyAccount(ctx).toString();
     }
 
     @Transaction()
-    public boolean orderIdExists(Context ctx) {
+    public String getMyBalance(final Context ctx) {
+        return getMyAccount(ctx).getBalance();
+    }
+
+    @Transaction()
+    public List<Security> getMySecurities(final Context ctx) {
+        return getMyAccount(ctx).getSecurities();
+    }
+
+    @Transaction()
+    public boolean orderIdExists(final Context ctx) {
         ChaincodeStub stub = ctx.getStub();
         byte[] buffer = stub.getState("ORDERID");
         return (buffer != null && buffer.length > 0);
     }
 
     @Transaction()
-    public boolean securityExists(Context ctx, String symbol) {
+    public boolean securityExists(final Context ctx, String symbol) {
         ChaincodeStub stub = ctx.getStub();
         byte[] buffer = stub.getState(symbol);
         return (buffer != null && buffer.length > 0);
     }
 
     @Transaction()
-    public boolean orderExists(Context ctx, String orderHash) {
+    public boolean orderExists(final Context ctx, String orderHash) {
         return (getAllOrders(ctx).contains(orderHash));
     }
 
     @Transaction()
-    public boolean traderExists(Context ctx, String hin) {
+    public boolean traderExists(final Context ctx, String hin) {
         ChaincodeStub stub = ctx.getStub();
         byte[] buffer = stub.getState(hin);
         return (buffer != null && buffer.length > 0);
     }
 
     @Transaction()
-    public String getMyId(Context ctx) {
-        return ctx.getClientIdentity().getId();
-    }
-
-    @Transaction()
-    public String getMyBalance(Context ctx) {
-        return getMyAccount(ctx).getBalance();
-    }
-
-    @Transaction()
-    public void createTrader(Context ctx) {
+    public Trader createTrader(final Context ctx) {
         ChaincodeStub stub = ctx.getStub();
         String hin = getMyHin(ctx);
         boolean exists = traderExists(ctx,hin);
@@ -133,19 +143,21 @@ public class SecurityContract implements ContractInterface {
             throw new RuntimeException("The trader "+hin+" already exists");
         }
         Trader trader = new Trader(hin, "10000");
-        String traderState = genson.serialize(hin, traderState);
+        String traderState = genson.serialize(trader);
         stub.putStringState(hin, traderState);
+
+        return trader;
     }
 
     @Transaction()
-    public boolean removeMyTrader(Context ctx) {
+    public boolean removeMyTrader(final Context ctx) {
         ChaincodeStub stub = ctx.getStub();
         stub.delState(getMyHin(ctx));
         return true;
     }
 
     @Transaction()
-    public boolean removeSecurity(Context ctx, String symbol) {
+    public boolean removeSecurity(final Context ctx, String symbol) {
         ChaincodeStub stub = ctx.getStub();
         stub.delState(symbol);
         return true;
@@ -158,7 +170,7 @@ public class SecurityContract implements ContractInterface {
     //}
 
     @Transaction()
-    public void createSecurity(Context ctx, String symbol, String name, String quantity) {
+    public void createSecurity(final Context ctx, String symbol, String name, String quantity) {
         ChaincodeStub stub = ctx.getStub();
         boolean exists = securityExists(ctx,symbol);
         if (exists) {
@@ -170,10 +182,11 @@ public class SecurityContract implements ContractInterface {
 
         // ------- Add this newly created Stock to the admin account --------
         Trader trader = getMyAccount(ctx);
-        trader.modifySecurityQu(security);
+        trader.modifySecurityQuantity(security);
 
         // -------- Save changes to trader account ---------
         String traderState = genson.serialize(trader);
+        System.out.println("TRADERSTATE:" + traderState);
         stub.putStringState(trader.getHin(), traderState);
 
         JSONObject obj = new JSONObject();
@@ -184,7 +197,7 @@ public class SecurityContract implements ContractInterface {
     }
     
     @Transaction()
-    public String createOrder(Context ctx, String method, String symbol, String quantity, String price, String timestamp) {
+    public String createOrder(final Context ctx, String method, String symbol, String quantity, String price, String timestamp) {
         ChaincodeStub stub = ctx.getStub();
         Order order = new Order(symbol, quantity, price, method, timestamp, "true", "false", getMyHin(ctx));
         Trader trader = getMyAccount(ctx);
@@ -208,7 +221,7 @@ public class SecurityContract implements ContractInterface {
 
             // --------- Save order ----------
             String orderState = genson.serialize(order);
-            stub.putStringState(getOrderId(ctx), order);
+            stub.putStringState(getOrderId(ctx), orderState);
 
             // --------- Increment order id ---------
             int orderId = Integer.parseInt(getOrderId(ctx));
@@ -222,7 +235,7 @@ public class SecurityContract implements ContractInterface {
     }
 
     @Transaction()
-    public boolean settleOrder(Context ctx, String buyId, String sellId, String symbol, String price, String quantity, String buyTimestamp, String sellTimestamp, String sellHin) {
+    public boolean settleOrder(final Context ctx, String buyId, String sellId, String symbol, String price, String quantity, String buyTimestamp, String sellTimestamp, String sellHin) {
         ChaincodeStub stub = ctx.getStub();
         
         Order buyOrder = new Order(symbol, quantity, price, "0", buyTimestamp, "true", "false", getMyHin(ctx));
@@ -236,17 +249,17 @@ public class SecurityContract implements ContractInterface {
         }
 
         Trader buyer = getMyAccount(ctx);
-        Trader seller = genson.deserialize(stub.getStringState(sellHin), Trader.class);
+        Trader seller = Trader.fromJSONString(stub.getStringState(sellHin));
 
         // -------- Transfer the stock from seller to buyer ----------
         int quant = Integer.parseInt(quantity);
         Security tradedSecurity = genson.deserialize(stub.getStringState(symbol), Security.class);
-        buyer.addSecurity(new Security(symbol, tradedSecurity.getName(), quantity));
+        buyer.modifySecurityQuantity(new Security(symbol, tradedSecurity.getName(), quantity));
 
         quant = Integer.parseInt(quantity);
         quant *= -1;
         quantity = Integer.toString(quant);
-        seller.addSecurity(new Security(symbol, tradedSecurity.getName(), quantity));
+        seller.modifySecurityQuantity(new Security(symbol, tradedSecurity.getName(), quantity));
 
         if(seller.getMySecurity(symbol).getQuantity().equals("0")){
             seller.removeSecurity(symbol);
@@ -275,7 +288,7 @@ public class SecurityContract implements ContractInterface {
     }
 
     @Transaction()
-    public Security getSecurity(Context ctx, String symbol) {
+    public Security getSecurity(final Context ctx, String symbol) {
         ChaincodeStub stub = ctx.getStub();
 
         boolean exists = securityExists(ctx,symbol);
@@ -299,7 +312,7 @@ public class SecurityContract implements ContractInterface {
     }*/
 
     @Transaction()
-    private void deleteSecurity(Context ctx, String symbol) {
+    private void deleteSecurity(final Context ctx, String symbol) {
         ChaincodeStub stub = ctx.getStub();
 
         boolean exists = securityExists(ctx,symbol);
