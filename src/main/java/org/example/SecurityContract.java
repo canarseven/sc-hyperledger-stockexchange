@@ -186,7 +186,6 @@ public class SecurityContract implements ContractInterface {
 
         // -------- Save changes to trader account ---------
         String traderState = genson.serialize(trader);
-        System.out.println("TRADERSTATE:" + traderState);
         stub.putStringState(trader.getHin(), traderState);
 
         JSONObject obj = new JSONObject();
@@ -229,7 +228,7 @@ public class SecurityContract implements ContractInterface {
             stub.putState("ORDERID", Integer.toString(orderId).getBytes(UTF_8));
 
             // --------- create Events instead of return statement ----------
-            String output = order.getHash() + ";" + Integer.toString((Integer.parseInt(getOrderId(ctx)) - 1));
+            String output = order.getHash() + ";" + getOrderId(ctx));
             return output;
         }
     }
