@@ -17,11 +17,12 @@ public final class Order {
     @Property()
     private final String orderHash;
 
-    public Order(@JsonProperty("symbol") final String symbol, @JsonProperty("quantity") final String quantity, 
-            @JsonProperty("price") final String price, @JsonProperty("method") final String method, 
-            @JsonProperty("timestamp") final String timestamp, @JsonProperty("valid") final String valid, 
-            @JsonProperty("processed") final String processed, @JsonProperty("traderHin") final String traderHin){
-        final String orderString = symbol + quantity +  price +  method +  timestamp + valid + processed + traderHin;
+    public Order(@JsonProperty("orderId") final String orderId, @JsonProperty("symbol") final String symbol,
+            @JsonProperty("quantity") final String quantity, @JsonProperty("price") final String price,
+            @JsonProperty("method") final String method, @JsonProperty("timestamp") final String timestamp,
+            @JsonProperty("valid") final String valid, @JsonProperty("processed") final String processed,
+            @JsonProperty("traderHin") final String traderHin){
+        final String orderString = orderId + symbol + quantity +  price +  method +  timestamp + valid + processed + traderHin;
         this.orderHash = Integer.toString(orderString.hashCode());
     }
 

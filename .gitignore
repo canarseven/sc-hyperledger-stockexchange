@@ -31,4 +31,4 @@ go-carpet-coverage*
 sdk/node/lib/protos/*
 © 2020 GitHub, Inc.
 node_modules/
-benchmarks/
+networks/config/crypto-config
