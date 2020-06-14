@@ -230,7 +230,6 @@ public class SecurityContract implements ContractInterface {
     @Transaction()
     public boolean settleOrder(final Context ctx, String buyId, String sellId, String symbol, String price, String quantity, String buyTimestamp, String sellTimestamp, String sellHin) {
         ChaincodeStub stub = ctx.getStub();
-        
         Order buyOrder = new Order(buyId, symbol, quantity, price, "0", buyTimestamp, "true", "false", getMyHin(ctx));
         Order sellOrder = new Order(sellId, symbol, quantity, price, "1", sellTimestamp, "true", "false", sellHin);
 
@@ -238,16 +237,14 @@ public class SecurityContract implements ContractInterface {
         if (!orderExists(ctx, buyOrder.getHash()) || !orderExists(ctx, sellOrder.getHash())){
             throw new RuntimeException("One of the two orders you provided do not exist. BuyOrder: " + buyOrder.getHash() + ", SellOrder: " + sellOrder.getHash());
         }
-
         Trader buyer = getMyAccount(ctx);
         Trader seller = Trader.fromJSONString(stub.getStringState(sellHin));
 
         // -------- Transfer the stock from seller to buyer ----------
-        int quant = Integer.parseInt(quantity);
         Security tradedSecurity = genson.deserialize(stub.getStringState(symbol), Security.class);
         buyer.modifySecurityQuantity(new Security(symbol, tradedSecurity.getName(), quantity));
 
-        quant = Integer.parseInt(quantity);
+        int quant = Integer.parseInt(quantity);
         quant *= -1;
         quantity = Integer.toString(quant);
         seller.modifySecurityQuantity(new Security(symbol, tradedSecurity.getName(), quantity));
@@ -259,12 +256,10 @@ public class SecurityContract implements ContractInterface {
         // -------- Transfer the funds from buyer to seller ----------
         int total = quant * Integer.parseInt(price);
         buyer.modBalance(total);
-
-        total *= -1;
+        total *= -1;                //multiply by -1 due to the (-) quant
         seller.modBalance(total);
 
-        // -------- Modify the orders ------------
-
+        // -------- Modify the orders -----------
         Order modBuyOrder = new Order(buyId, symbol, quantity, price, "0", buyTimestamp, "true", "true", getMyHin(ctx));
         Order modSellOrder = new Order(sellId, symbol, quantity, price, "1", sellTimestamp, "true", "true", sellHin);
 
