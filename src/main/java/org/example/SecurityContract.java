@@ -181,12 +181,6 @@ public class SecurityContract implements ContractInterface {
         return true;
     }
 
-
-    //@Transaction()
-    //public String getMyAccount(Context ctx) {
-    //    return new String(ctx.getStub().getState(Integer.toString(ctx.getClientIdentity().getId().hashCode())));
-    //}
-
     @Transaction()
     public void createSecurity(final Context ctx, String symbol, String name, String quantity) {
         ChaincodeStub stub = ctx.getStub();
@@ -211,7 +205,6 @@ public class SecurityContract implements ContractInterface {
         obj.put("name", name);
         obj.put("quantity", quantity);
         stub.setEvent("CreatedSecurity", obj.toString().getBytes(UTF_8));
-        logger.info("CREATED SECURITY: "+securityState);
     }
     
     @Transaction()
@@ -224,7 +217,7 @@ public class SecurityContract implements ContractInterface {
         String orderState = genson.serialize(order);
         stub.putStringState(getOrderId(ctx), orderState);
 
-        // --------- create Events instead of return statement ----------
+        // --------- Emit Event ----------
         JSONObject obj = new JSONObject();
         obj.put("symbol", symbol);
         obj.put("method", method);
@@ -241,6 +234,7 @@ public class SecurityContract implements ContractInterface {
         Order buyOrder = new Order(buyId, symbol, quantity, price, "0", buyTimestamp, "true", "false", getMyHin(ctx));
         Order sellOrder = new Order(sellId, symbol, quantity, price, "1", sellTimestamp, "true", "false", sellHin);
 
+        // ------- Check if orders exist ------
         if (!orderExists(ctx, buyOrder.getHash()) || !orderExists(ctx, sellOrder.getHash())){
             throw new RuntimeException("One of the two orders you provided do not exist. BuyOrder: " + buyOrder.getHash() + ", SellOrder: " + sellOrder.getHash());
         }
@@ -280,8 +274,11 @@ public class SecurityContract implements ContractInterface {
         stub.putStringState(buyId, modBuyOrderState);
         stub.putStringState(sellId, modSellOrderState);
 
-        // ------- Emit event instead of return statement ---------
-        return true;
+        // --------- Emit Event ----------
+        JSONObject obj = new JSONObject();
+        obj.put("buyId", buyId);
+        obj.put("sellId", sellId);
+        stub.setEvent("SettledOrder", obj.toString().getBytes(UTF_8));
     }
 
     @Transaction()
@@ -296,17 +293,6 @@ public class SecurityContract implements ContractInterface {
         Security security = genson.deserialize(stub.getStringState(symbol), Security.class);
         return security;
     }
-
-    /*@Transaction()
-    private void updateSecurity(Context ctx, String symbol, String name) {
-        boolean exists = securityExists(ctx,symbol);
-        if (!exists) {
-            throw new RuntimeException("The security "+symbol+" does not exist");
-        }
-        Security security = new Security(symbol, name, );
-
-        ctx.getStub().putState(symbol, asset.toJSONString().getBytes(UTF_8));
-    }*/
 
     @Transaction()
     private void deleteSecurity(final Context ctx, String symbol) {
