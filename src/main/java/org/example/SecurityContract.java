@@ -45,22 +45,15 @@ public class SecurityContract implements ContractInterface {
 
     private final Genson genson = new Genson();
     private static final Logger logger = Logger.getLogger(SecurityContract.class.getName());
-    private Map<String, String> allOrders;
 
     /**
      * Placeholder for init function
      *
      * @param ctx   the transaction context
      */
-    @Transaction()
-    public void initAllOrders(final Context ctx) {
-        allOrders = new HashMap<String, String>();
-    }
-
-    @Transaction()
-    public Map<String, String> getAllOrders(final Context ctx) {
-        return allOrders;
-    }
+    /*@Transaction()
+    public void init(final Context ctx) {
+    }*/
 
     @Transaction()
     public String getHashCode(final Context ctx, String hashMe) {
@@ -98,18 +91,6 @@ public class SecurityContract implements ContractInterface {
     }
 
     @Transaction()
-    public boolean securityExists(final Context ctx, String symbol) {
-        ChaincodeStub stub = ctx.getStub();
-        byte[] buffer = stub.getState(symbol);
-        return (buffer != null && buffer.length > 0);
-    }
-
-    @Transaction()
-    public boolean orderExists(final Context ctx, String orderId) {
-        return (getAllOrders(ctx).containsKey(orderId));
-    }
-
-    @Transaction()
     public boolean traderExists(final Context ctx, String hin) {
         ChaincodeStub stub = ctx.getStub();
         byte[] buffer = stub.getState(hin);
@@ -138,108 +119,13 @@ public class SecurityContract implements ContractInterface {
         return true;
     }
 
-    @Transaction()
-    public boolean removeSecurity(final Context ctx, String symbol) {
-        ChaincodeStub stub = ctx.getStub();
-        stub.delState(symbol);
-        return true;
-    }
+    // ----------------- Security (Stocks) related functions -------------------
 
     @Transaction()
-    public void createSecurity(final Context ctx, String symbol, String name, String quantity) {
+    public boolean securityExists(final Context ctx, String symbol) {
         ChaincodeStub stub = ctx.getStub();
-        boolean exists = securityExists(ctx,symbol);
-        if (exists) {
-            throw new RuntimeException("The security " + symbol + " already exists");
-        }
-        Security security = new Security(symbol, name, quantity);
-        String securityState = genson.serialize(security);
-        stub.putStringState(symbol, securityState);
-
-        // ------- Add this newly created Stock to the admin account --------
-        Trader trader = getMyAccount(ctx);
-
-        // -------- Save changes to trader account ---------
-        String traderState = genson.serialize(trader);
-        stub.putStringState(trader.getHin(), traderState);
-
-        JSONObject obj = new JSONObject();
-        obj.put("symbol", symbol);
-        obj.put("name", name);
-        obj.put("quantity", quantity);
-        stub.setEvent("CreatedSecurity", obj.toString().getBytes(UTF_8));
-    }
-    
-    @Transaction()
-    public void createOrder(final Context ctx, String orderId, String method, String symbol, String quantity, String price, String timestamp) {
-        ChaincodeStub stub = ctx.getStub();
-        Trader trader = getMyAccount(ctx);
-        if (trader == null) {
-            throw new RuntimeException("The Trader is not registered with this exchange.");
-        }
-        String hashMe = orderId + method + symbol + quantity + price + timestamp + "true" + "false" + trader.getHin();
-        String orderHash = Integer.toString(hashMe.hashCode());
-
-        // --------- Save order ----------
-        stub.putStringState(orderId, orderHash);
-        allOrders.put(orderId, orderHash);
-
-        // --------- Emit Event ----------
-        JSONObject obj = new JSONObject();
-        obj.put("symbol", symbol);
-        obj.put("method", method);
-        obj.put("quantity", quantity);
-        obj.put("price", price);
-        obj.put("timestamp", timestamp);
-        obj.put("owner", trader.getHin());
-        stub.setEvent("CreatedOrder", obj.toString().getBytes(UTF_8));
-    }
-
-    @Transaction()
-    public void settleOrder(final Context ctx, String buyId, String sellId, String symbol, String price, String quantity, String buyTimestamp, String sellTimestamp, String sellHin) {
-        ChaincodeStub stub = ctx.getStub();
-        Trader buyer = getMyAccount(ctx);
-        Trader seller = Trader.fromJSONString(stub.getStringState(sellHin));
-        String hashMe = buyId + "0" + symbol + quantity + price + buyTimestamp + "true" + "false" + buyer.getHin();
-        String buyHash = Integer.toString(hashMe.hashCode());
-        hashMe = sellId + "1" + symbol + quantity + price + sellTimestamp + "true" + "false" + sellHin;
-        String sellHash = Integer.toString(hashMe.hashCode());
-
-        // ------- Check if orders exist ------
-        if ((allOrders.get(buyId) == null || allOrders.get(buyId) != buyHash) || (allOrders.get(sellId) == null || allOrders.get(sellId) != sellHash)){
-            throw new RuntimeException("One of the two orders you provided do not exist. BuyOrder: " + buyHash + ", SellOrder: " + sellHash);
-        }
-
-        // -------- Transfer the stock from seller to buyer ----------
-        Security tradedSecurity = genson.deserialize(stub.getStringState(symbol), Security.class);
-
-        int quant = Integer.parseInt(quantity);
-        quant *= -1;
-        quantity = Integer.toString(quant);
-
-        // -------- Transfer the funds from buyer to seller ----------
-        int total = quant * Integer.parseInt(price);
-        buyer.modBalance(total);
-        total *= -1;                //multiply by -1 due to the (-) quant
-        seller.modBalance(total);
-
-        // -------- Modify the orders -----------
-        hashMe = buyId + "0" + symbol + quantity + price + buyTimestamp + "true" + "true" + buyer.getHin();
-        buyHash = Integer.toString(hashMe.hashCode());
-        hashMe = sellId + "1" + symbol + quantity + price + sellTimestamp + "true" + "true" + sellHin;
-        sellHash = Integer.toString(hashMe.hashCode());
-
-        // ------- Replace original orders with modified orders ---------
-        stub.putStringState(buyId, buyHash);
-        stub.putStringState(sellId, sellHash);
-        allOrders.put(buyId, buyHash);
-        allOrders.put(sellId, sellHash);
-
-        // --------- Emit Event ----------
-        JSONObject obj = new JSONObject();
-        obj.put("buyId", buyId);
-        obj.put("sellId", sellId);
-        stub.setEvent("SettledOrder", obj.toString().getBytes(UTF_8));
+        byte[] buffer = stub.getState(symbol);
+        return (buffer != null && buffer.length > 0);
     }
 
     @Transaction()
@@ -264,6 +150,114 @@ public class SecurityContract implements ContractInterface {
             throw new RuntimeException("The asset "+symbol+" does not exist");
         }
         stub.delState(symbol);
+    }
+
+    @Transaction()
+    public void createSecurity(final Context ctx, String symbol, String name, String quantity) {
+        ChaincodeStub stub = ctx.getStub();
+        Trader trader = getMyAccount(ctx);
+        boolean exists = securityExists(ctx,symbol);
+        if (exists) {
+            throw new RuntimeException("The security " + symbol + " already exists");
+        }
+        Security security = new Security(trader.getHin(), symbol, name, quantity);
+        String securityState = genson.serialize(security);
+        stub.putStringState(symbol, securityState);
+
+        JSONObject obj = new JSONObject();
+        obj.put("symbol", symbol);
+        obj.put("name", name);
+        obj.put("quantity", quantity);
+        stub.setEvent("CreatedSecurity", obj.toString().getBytes(UTF_8));
+    }
+
+    // ----------------- Order related functions -------------------
+
+    @Transaction()
+    public boolean orderExists(final Context ctx, String orderId) {
+        ChaincodeStub stub = ctx.getStub();
+        byte[] buffer = stub.getState(orderId);
+        return (buffer != null && buffer.length > 0);
+    }
+
+    @Transaction()
+    public Order getOrder(final Context ctx, String orderId) {
+        ChaincodeStub stub = ctx.getStub();
+
+        boolean exists = orderExists(ctx, orderId);
+        if (!exists) {
+            throw new RuntimeException("The order " + orderId + " does not exist");
+        }
+
+        Order order = genson.deserialize(stub.getStringState(orderId), Order.class);
+        return order;
+    }
+
+    @Transaction()
+    public void createOrder(final Context ctx, String orderId, String method, String symbol, String quantity, String price, String timestamp) {
+        ChaincodeStub stub = ctx.getStub();
+        Trader trader = getMyAccount(ctx);
+        if (trader == null) {
+            throw new RuntimeException("The Trader is not registered with this exchange.");
+        }
+        Order newOrder = new Order(orderId, symbol, quantity, price, method, timestamp, "true", "false", trader.getHin());
+
+        // --------- Save order ----------
+        String orderString = genson.serialize(newOrder);
+        stub.putStringState(orderId, orderString);
+
+        // --------- Emit Event ----------
+        JSONObject obj = new JSONObject();
+        obj.put("symbol", symbol);
+        obj.put("method", method);
+        obj.put("quantity", quantity);
+        obj.put("price", price);
+        obj.put("timestamp", timestamp);
+        obj.put("owner", trader.getHin());
+        stub.setEvent("CreatedOrder", obj.toString().getBytes(UTF_8));
+    }
+
+    @Transaction()
+    public void settleOrder(final Context ctx, String buyId, String sellId, String symbol, String price, String quantity, String buyTimestamp, String sellTimestamp, String sellHin) {
+        ChaincodeStub stub = ctx.getStub();
+        Trader buyer = getMyAccount(ctx);
+        Trader seller = Trader.fromJSONString(stub.getStringState(sellHin));
+        Order buyOrder = new Order(buyId, symbol, quantity, price, "0", buyTimestamp, "true", "false", buyer.getHin());
+        Order sellOrder = new Order(sellId, symbol, quantity, price, "1", sellTimestamp, "true", "false", sellHin);
+
+        // ------- Check if orders exist ------
+        if (orderExists(ctx, buyId) == false || orderExists(ctx, sellId) == false){
+            throw new RuntimeException("One of the two orders you provided do not exist. BuyOrder: " + buyOrder.getHash() + ", SellOrder: " + sellOrder.getHash());
+        }
+
+        // -------- Transfer the stock from seller to buyer ----------
+        Security tradedSecurity = genson.deserialize(stub.getStringState(symbol), Security.class);
+
+        int quant = Integer.parseInt(quantity);
+        quant *= -1;
+        quantity = Integer.toString(quant);
+
+        // -------- Transfer the funds from buyer to seller ----------
+        int total = quant * Integer.parseInt(price);
+        buyer.modBalance(total);
+        total *= -1;                //multiply by -1 due to the (-) quant
+        seller.modBalance(total);
+
+        // -------- Modify the orders -----------
+        buyOrder = new Order(buyId, symbol, quantity, price, "0", buyTimestamp, "true", "true", buyer.getHin());
+        sellOrder = new Order(sellId, symbol, quantity, price, "1", sellTimestamp, "true", "true", sellHin);
+
+        // ------- Replace original orders with modified orders ---------
+        String orderState = genson.serialize(buyOrder);
+        stub.putStringState(buyId, orderState);
+        orderState = genson.serialize(sellOrder);
+        stub.putStringState(sellId, orderState);
+
+        // --------- Emit Event ----------
+        JSONObject obj = new JSONObject();
+        obj.put("buyId", buyId);
+        obj.put("sellId", sellId);
+        stub.setEvent("SettledOrder", obj.toString().getBytes(UTF_8));
     }
 
 }

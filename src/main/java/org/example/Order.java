@@ -15,7 +15,10 @@ import com.owlike.genson.annotation.JsonProperty;
 public final class Order {
 
     @Property()
-    private final String orderHash;
+    private final String orderId;
+
+    @Property()
+    private String orderHash;
 
     public Order(@JsonProperty("orderId") final String orderId, @JsonProperty("symbol") final String symbol,
             @JsonProperty("quantity") final String quantity, @JsonProperty("price") final String price,
@@ -24,10 +27,15 @@ public final class Order {
             @JsonProperty("traderHin") final String traderHin){
         final String orderString = orderId + symbol + quantity +  price +  method +  timestamp + valid + processed + traderHin;
         this.orderHash = Integer.toString(orderString.hashCode());
+        this.orderId = orderId;
     }
 
     public String getHash() {
         return orderHash;
+    }
+
+    public String getOrderId() {
+        return orderId;
     }
 
     @Override
@@ -42,26 +50,12 @@ public final class Order {
 
         Order other = (Order) obj;
 
-        return Objects.deepEquals(new String[] {getHash()},
-                new String[] {other.getHash()});
+        return Objects.deepEquals(new String[] {getOrderId(), getHash()},
+                new String[] {other.getOrderId(), other.getHash()});
     }
 
     @Override
     public String toString() {
-        return this.getClass().getSimpleName() + "@" + Integer.toHexString(hashCode()) + " [orderHash=" + orderHash + "]";
+        return this.getClass().getSimpleName() + "@" + Integer.toHexString(hashCode()) + " [orderId =" + orderId + ", orderHash=" + orderHash + "]";
     }
-
-    /*public static Order fromJSONString(String json) {
-        JSONObject jobject = new JSONObject(json);
-        String symbol = jobject.getString("symbol");
-        String quantity = jobject.getString("quantity");
-        String price = jobject.getString("price");
-        String method = jobject.getString("method");
-        String timestamp = jobject.getString("timestamp");
-        String valid = jobject.getString("valid");
-        String processed = jobject.getString("processed");
-        String trader = jobject.getString("hin");
-        Order order = new Order(symbol, quantity, price, method, timestamp, valid, processed, trader);
-        return order;
-    }*/
 }

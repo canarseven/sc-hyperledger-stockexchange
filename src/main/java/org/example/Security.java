@@ -5,6 +5,9 @@
 package org.example;
 
 import java.util.Objects;
+import org.json.JSONObject;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.hyperledger.fabric.contract.annotation.DataType;
 import org.hyperledger.fabric.contract.annotation.Property;
@@ -15,15 +18,28 @@ import com.owlike.genson.annotation.JsonProperty;
 public class Security {
 
     @Property()
+    private final String owner;
+    @Property()
     private final String symbol;
+    @Property()
     private final String name;
-    private String quantity;
+    @Property()
+    private final String totalSupply;
+    @Property()
+    private Map<String, Integer> balances;
 
-    public Security(@JsonProperty("symbol") final String symbol, @JsonProperty("name") final String name, 
-            @JsonProperty("quantity") String quantity){
+    public Security(@JsonProperty("owner") final String owner, @JsonProperty("symbol") final String symbol, @JsonProperty("name") final String name, 
+            @JsonProperty("totalSupply") String totalSupply){
+        this.owner = owner;
         this.symbol = symbol;
         this.name = name;
-        this.quantity = quantity;
+        this.totalSupply = totalSupply;
+        this.balances = new HashMap<String, Integer>();
+        this.balances.put(owner, Integer.parseInt(totalSupply));
+    }
+
+    public String getOwner() {
+        return owner;
     }
 
     public String getSymbol() {
@@ -34,19 +50,30 @@ public class Security {
         return name;
     }
 
-    public String getQuantity() {
-        return quantity;
+    public String getTotalSupply() {
+        return totalSupply;
     }
 
-    public void modifyQuantity(@JsonProperty("amount") String amount){
-        int newQuantity = Integer.parseInt(quantity) + Integer.parseInt(amount);
-        quantity = Integer.toString(newQuantity);
+    public Map<String, Integer> getBalances() {
+        return balances;
+    }
+
+    public int getBalanceOf(@JsonProperty("hin") String hin){
+        return balances.get(hin);
+    }
+
+    public void transfer(@JsonProperty("from") String fromHin, @JsonProperty("to") String toHin, @JsonProperty("amount") String amount){
+        int intAmount = Integer.parseInt(amount);
+        if (balances.get(fromHin) >= intAmount) {
+            balances.put(fromHin, balances.get(fromHin) - intAmount);
+            balances.put(toHin, balances.get(toHin) + intAmount);
+        }
     }
 
     @Override
     public String toString() {
-        return this.getClass().getSimpleName() + "@" + Integer.toHexString(hashCode()) + " [symbol=" + symbol 
-            + ", name=" + name + ", quantity=" + quantity + "]";
+        return this.getClass().getSimpleName() + "@" + Integer.toHexString(hashCode()) + " [owner=" + owner + ", symbol=" + symbol 
+            + ", name=" + name + ", totalSupply=" + totalSupply + ", balances=" + balances + "]";
     }
 
     @Override
@@ -61,12 +88,12 @@ public class Security {
 
         Security other = (Security) obj;
 
-        return Objects.deepEquals(new String[] {getSymbol(), getName(), getQuantity()},
-                new String[] {other.getSymbol(), other.getName(), other.getQuantity()});
+        return Objects.deepEquals(new String[] {getOwner(), getSymbol(), getName(), getTotalSupply()},
+                new String[] {other.getOwner(), other.getSymbol(), other.getName(), other.getTotalSupply()});
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getSymbol(), getName(), getQuantity());
+        return Objects.hash(getOwner(), getSymbol(), getName(), getTotalSupply());
     }
 }

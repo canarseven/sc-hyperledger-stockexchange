@@ -80,8 +80,6 @@ public class Trader {
         JSONObject jobj = new JSONObject(json);
         String hin = jobj.getString("hin");
         String balance = jobj.getString("balance");
-        JSONArray securities = jobj.getJSONArray("status");
-
         Trader trader = new Trader(hin, balance);
         return trader;
     }
