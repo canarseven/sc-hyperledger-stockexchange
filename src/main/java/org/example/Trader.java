@@ -31,7 +31,7 @@ public class Trader {
     public Trader(@JsonProperty("hin") final String hin, @JsonProperty("balance") String balance){
         this.hin = hin;
         this.balance = balance;
-        this.isMember = true;
+        this.isMember = "true";
     }
 
     public String getHin() {
