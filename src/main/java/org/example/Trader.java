@@ -26,12 +26,12 @@ public class Trader {
     private String balance;
 
     @Property()
-    private List<Security> securities;
+    private String isMember;
 
     public Trader(@JsonProperty("hin") final String hin, @JsonProperty("balance") String balance){
         this.hin = hin;
         this.balance = balance;
-        this.securities = new ArrayList<Security>();
+        this.isMember = true;
     }
 
     public String getHin() {
@@ -42,62 +42,23 @@ public class Trader {
         return balance;
     }
 
-    public List<Security> getSecurities() {
-        return securities;
+    public String getStatus() {
+        return isMember;
     }
 
     public void modBalance(@JsonProperty("amount") int amount) {
         this.balance += amount;
     }
 
-    public boolean modifySecurityQuantity(Security newSecurity) {
-        for(Security security : securities) {
-            if(security.getSymbol().equals(newSecurity.getSymbol())) {
-                security.modifyQuantity(newSecurity.getQuantity());
-                return true;
-            }
-        }
-        securities.add(newSecurity);
-        return true;
-    }
-
-    public boolean removeSecurity(@JsonProperty("symbol") String symbol) {
-        for(Security security : securities) {
-            if(security.getSymbol().equals(symbol)) {
-                securities.remove(security);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public boolean isMySecurity(@JsonProperty("symbol") String symbol) {
-        for(Security security : securities) {
-            if(security.getSymbol().equals(symbol)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public Security getMySecurity(@JsonProperty("symbol") String symbol) {
-        for(Security security : securities) {
-            if(security.getSymbol().equals(symbol)) {
-                return security;
-            }
-        }
-        return null;
-    }
-
     @Override
     public int hashCode() {
-        return Objects.hash(getHin(), getBalance(), getSecurities());
+        return Objects.hash(getHin(), getBalance(), getStatus());
     }
 
     @Override
     public String toString() {
         return this.getClass().getSimpleName() + "@" + Integer.toHexString(hashCode()) + " [hin=" + hin + ", balance="
-                + balance + ", securities=" + securities + "]";
+                + balance + "]";
     }
 
     @Override
@@ -119,14 +80,9 @@ public class Trader {
         JSONObject jobj = new JSONObject(json);
         String hin = jobj.getString("hin");
         String balance = jobj.getString("balance");
-        JSONArray securities = jobj.getJSONArray("securities");
+        JSONArray securities = jobj.getJSONArray("status");
 
         Trader trader = new Trader(hin, balance);
-        int n = securities.length();
-        for (int i = 0; i < n; ++i) {
-            JSONObject security = securities.getJSONObject(i);
-            trader.modifySecurityQuantity(new Security(security.getString("symbol"), security.getString("name"), security.getString("quantity")));
-        }
         return trader;
     }
 }

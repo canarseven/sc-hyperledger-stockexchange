@@ -69,12 +69,4 @@ public class Security {
     public int hashCode() {
         return Objects.hash(getSymbol(), getName(), getQuantity());
     }
-
-    /*public static Security fromJSONString(String json, String symbol) {
-        String name = new JSONObject(json).getString("name");
-        String quantity = new JSONObject(json).getString("quantity");
-
-        Security security = new Security(symbol, name, quantity);
-        return security;
-    }*/
 }

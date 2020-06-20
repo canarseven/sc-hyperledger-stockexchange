@@ -12,6 +12,8 @@ import java.util.List;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import org.json.JSONObject;
 import java.util.logging.Logger;
+import java.util.HashMap;
+import org.ethereum.crypto.HashUtil.sha3;
 
 import org.hyperledger.fabric.shim.ChaincodeException;
 import org.hyperledger.fabric.shim.ChaincodeStub;
@@ -43,6 +45,7 @@ public class SecurityContract implements ContractInterface {
 
     private final Genson genson = new Genson();
     private static final Logger logger = Logger.getLogger(SecurityContract.class.getName());
+    private Map<String,byte[]> allOrders;
 
     /**
      * Placeholder for init function
@@ -50,40 +53,13 @@ public class SecurityContract implements ContractInterface {
      * @param ctx   the transaction context
      */
     @Transaction()
-    public void init(final Context ctx) {
-        initOrderId(ctx);
+    public void initAllOrders(final Context ctx) {
+        allOrders = new HashMap<String, byte[]>();
     }
 
     @Transaction()
-    public boolean initOrderId(final Context ctx) {
-        ChaincodeStub stub = ctx.getStub();
-        if (!orderIdExists(ctx)) {
-            String orderId = "0";
-            stub.putState("ORDERID", orderId.getBytes(UTF_8));
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    @Transaction()
-    public String getOrderId(final Context ctx) {
-        ChaincodeStub stub = ctx.getStub();
-        String jsonString = new String(stub.getState("ORDERID"));
-        return jsonString;
-    }
-
-    @Transaction()
-    public String getAllOrders(final Context ctx) {
-        ChaincodeStub stub = ctx.getStub();
-        int max = Integer.parseInt(getOrderId(ctx));
-        List<String> allOrders = new ArrayList<String>();
-        for (int i = 0; i < max; i++) {
-            String orderId = Integer.toString(i);
-            allOrders.add(new String(stub.getState(orderId)));
-        }
-        //logger.info(allOrders);
-        return allOrders.toString();
+    public Map<String,byte[]> getAllOrders(final Context ctx) {
+        return allOrders;
     }
 
     @Transaction()
@@ -124,13 +100,6 @@ public class SecurityContract implements ContractInterface {
     @Transaction()
     public List<Security> getMySecurities(final Context ctx) {
         return getMyAccount(ctx).getSecurities();
-    }
-
-    @Transaction()
-    public boolean orderIdExists(final Context ctx) {
-        ChaincodeStub stub = ctx.getStub();
-        byte[] buffer = stub.getState("ORDERID");
-        return (buffer != null && buffer.length > 0);
     }
 
     @Transaction()
@@ -209,13 +178,16 @@ public class SecurityContract implements ContractInterface {
     
     @Transaction()
     public String createOrder(final Context ctx, String orderId, String method, String symbol, String quantity, String price, String timestamp) {
-        ChaincodeStub stub = ctx.getStub();
-        Order order = new Order(orderId, symbol, quantity, price, method, timestamp, "true", "false", getMyHin(ctx));
         Trader trader = getMyAccount(ctx);
+        if (trader == null or trader.getStatus() == false) {
+            throw new RuntimeException("The Trader is not registered with this exchange.");
+        }
+        String mixedParams = orderId + method + symbol + quantity + price + timestamp;
+        byte[] orderHash = sha(mixedParams.getBytes());
 
         // --------- Save order ----------
-        String orderState = genson.serialize(order);
-        stub.putStringState(getOrderId(ctx), orderState);
+        stub.putStringState(orderId, new String(orderHash));
+        allOrders.put(orderId, orderHash);
 
         // --------- Emit Event ----------
         JSONObject obj = new JSONObject();
@@ -224,17 +196,20 @@ public class SecurityContract implements ContractInterface {
         obj.put("quantity", quantity);
         obj.put("price", price);
         obj.put("timestamp", timestamp);
+        obj.put("owner", trader.getHin());
         stub.setEvent("CreatedOrder", obj.toString().getBytes(UTF_8));
     }
 
     @Transaction()
     public boolean settleOrder(final Context ctx, String buyId, String sellId, String symbol, String price, String quantity, String buyTimestamp, String sellTimestamp, String sellHin) {
         ChaincodeStub stub = ctx.getStub();
-        Order buyOrder = new Order(buyId, symbol, quantity, price, "0", buyTimestamp, "true", "false", getMyHin(ctx));
-        Order sellOrder = new Order(sellId, symbol, quantity, price, "1", sellTimestamp, "true", "false", sellHin);
+        String mixedParams = buyId + "0" + symbol + quantity + price + buyTimestamp + "true" + "false" + getMyHin(ctx);
+        byte[] buyHash = sha(mixedParams.getBytes());
+        mixedParams = sellId + "1" + symbol + quantity + price + sellTimestamp + "true" + "false" + sellHin;
+        byte[] sellHash = sha(mixedParams.getBytes());
 
         // ------- Check if orders exist ------
-        if (!orderExists(ctx, buyOrder.getHash()) || !orderExists(ctx, sellOrder.getHash())){
+        if ((allOrders.get(buyId) == null or allOrders.get(buyId) != buyHash) or (allOrders.get(sellId) == null or allOrders.get(sellId) != sellHash)){
             throw new RuntimeException("One of the two orders you provided do not exist. BuyOrder: " + buyOrder.getHash() + ", SellOrder: " + sellOrder.getHash());
         }
         Trader buyer = getMyAccount(ctx);
@@ -242,16 +217,10 @@ public class SecurityContract implements ContractInterface {
 
         // -------- Transfer the stock from seller to buyer ----------
         Security tradedSecurity = genson.deserialize(stub.getStringState(symbol), Security.class);
-        buyer.modifySecurityQuantity(new Security(symbol, tradedSecurity.getName(), quantity));
 
         int quant = Integer.parseInt(quantity);
         quant *= -1;
         quantity = Integer.toString(quant);
-        seller.modifySecurityQuantity(new Security(symbol, tradedSecurity.getName(), quantity));
-
-        if(seller.getMySecurity(symbol).getQuantity().equals("0")){
-            seller.removeSecurity(symbol);
-        }
 
         // -------- Transfer the funds from buyer to seller ----------
         int total = quant * Integer.parseInt(price);
@@ -260,14 +229,16 @@ public class SecurityContract implements ContractInterface {
         seller.modBalance(total);
 
         // -------- Modify the orders -----------
-        Order modBuyOrder = new Order(buyId, symbol, quantity, price, "0", buyTimestamp, "true", "true", getMyHin(ctx));
-        Order modSellOrder = new Order(sellId, symbol, quantity, price, "1", sellTimestamp, "true", "true", sellHin);
+        String mixedParams = buyId + "0" + symbol + quantity + price + buyTimestamp + "true" + "true" + getMyHin(ctx);
+        byte[] modBuyHash = sha(mixedParams.getBytes());
+        mixedParams = sellId + "1" + symbol + quantity + price + sellTimestamp + "true" + "true" + sellHin;
+        byte[] modSellHash = sha(mixedParams.getBytes());
 
         // ------- Replace original orders with modified orders ---------
-        String modBuyOrderState = genson.serialize(modBuyOrder);
-        String modSellOrderState = genson.serialize(modSellOrder);
-        stub.putStringState(buyId, modBuyOrderState);
-        stub.putStringState(sellId, modSellOrderState);
+        stub.putStringState(buyId, new String(modBuyHash));
+        stub.putStringState(sellId, new String(modSellHash));
+        allOrders.put(buyId, modBuyHash);
+        allOrders.put(sellId, sellBuyHash);
 
         // --------- Emit Event ----------
         JSONObject obj = new JSONObject();
