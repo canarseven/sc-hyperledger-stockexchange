@@ -62,11 +62,11 @@ public class Security {
         return balances.get(hin);
     }
 
-    public void transfer(@JsonProperty("from") String fromHin, @JsonProperty("to") String toHin, @JsonProperty("amount") String amount){
-        int intAmount = Integer.parseInt(amount);
-        if (balances.get(fromHin) >= intAmount) {
-            balances.put(fromHin, balances.get(fromHin) - intAmount);
-            balances.put(toHin, balances.get(toHin) + intAmount);
+    public void transfer(@JsonProperty("from") String fromHin, @JsonProperty("to") String toHin, @JsonProperty("quantity") String quantity){
+        int intQuantity = Integer.parseInt(quantity);
+        if (balances.get(fromHin) >= intQuantity) {
+            balances.put(fromHin, balances.get(fromHin) - intQuantity);
+            balances.put(toHin, balances.getOrDefault(toHin, 0) + intQuantity);
         }
     }
 

@@ -8,7 +8,7 @@
             "type": "fabric:java",
             "request": "launch",
             "name": "Debug Smart Contract",
-            "mainClass": "org.hyperledger.fabric.contract.ContractRouter"
+            "mainClass": "org.example.SecurityContract"
         }
     ]
 }

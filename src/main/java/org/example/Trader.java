@@ -47,7 +47,8 @@ public class Trader {
     }
 
     public void modBalance(@JsonProperty("amount") int amount) {
-        this.balance += amount;
+        int intBalance = Integer.parseInt(this.balance) + amount;
+        this.balance = Integer.toString(intBalance);
     }
 
     @Override

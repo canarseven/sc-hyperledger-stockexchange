@@ -167,7 +167,7 @@ public class SecurityContract implements ContractInterface {
         JSONObject obj = new JSONObject();
         obj.put("symbol", symbol);
         obj.put("name", name);
-        obj.put("quantity", quantity);
+        obj.put("totalSupply", quantity);
         stub.setEvent("CreatedSecurity", obj.toString().getBytes(UTF_8));
     }
 
@@ -217,6 +217,17 @@ public class SecurityContract implements ContractInterface {
         stub.setEvent("CreatedOrder", obj.toString().getBytes(UTF_8));
     }
 
+    @Transaction
+    public String changeBalances(final Context ctx, String symbol, String buyer, String seller, String quantity) {
+        ChaincodeStub stub = ctx.getStub();
+        Security tradedSecurity = genson.deserialize(stub.getStringState(symbol), Security.class);
+        tradedSecurity.transfer(seller, buyer, quantity);
+        System.out.println(tradedSecurity.toString());
+        String securityState = genson.serialize(tradedSecurity);
+        stub.putStringState(symbol, securityState);
+        return securityState;
+    }
+
     @Transaction()
     public void settleOrder(final Context ctx, String buyId, String sellId, String symbol, String price, String quantity, String buyTimestamp, String sellTimestamp, String sellHin) {
         ChaincodeStub stub = ctx.getStub();
@@ -232,16 +243,18 @@ public class SecurityContract implements ContractInterface {
 
         // -------- Transfer the stock from seller to buyer ----------
         Security tradedSecurity = genson.deserialize(stub.getStringState(symbol), Security.class);
-
-        int quant = Integer.parseInt(quantity);
-        quant *= -1;
-        quantity = Integer.toString(quant);
+        tradedSecurity.transfer(sellHin, buyer.getHin(), quantity);
+        String securityState = genson.serialize(tradedSecurity);
+        stub.putStringState(symbol, securityState);
 
         // -------- Transfer the funds from buyer to seller ----------
-        int total = quant * Integer.parseInt(price);
-        buyer.modBalance(total);
-        total *= -1;                //multiply by -1 due to the (-) quant
+        int total = Integer.parseInt(quantity) * Integer.parseInt(price);
+        buyer.modBalance(total * -1);
+        String traderState = genson.serialize(buyer);
+        stub.putStringState(buyer.getHin(), traderState);
         seller.modBalance(total);
+        traderState = genson.serialize(seller);
+        stub.putStringState(sellHin, traderState);
 
         // -------- Modify the orders -----------
         buyOrder = new Order(buyId, symbol, quantity, price, "0", buyTimestamp, "true", "true", buyer.getHin());

@@ -15,7 +15,7 @@ import com.owlike.genson.annotation.JsonProperty;
 public final class Order {
 
     @Property()
-    private final String orderId;
+    private String orderId;
 
     @Property()
     private String orderHash;
@@ -25,7 +25,7 @@ public final class Order {
             @JsonProperty("method") final String method, @JsonProperty("timestamp") final String timestamp,
             @JsonProperty("valid") final String valid, @JsonProperty("processed") final String processed,
             @JsonProperty("traderHin") final String traderHin){
-        final String orderString = orderId + symbol + quantity +  price +  method +  timestamp + valid + processed + traderHin;
+        String orderString = orderId + symbol + quantity +  price +  method +  timestamp + valid + processed + traderHin;
         this.orderHash = Integer.toString(orderString.hashCode());
         this.orderId = orderId;
     }
